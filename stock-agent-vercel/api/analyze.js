@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -17,14 +16,24 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1500,
-        system,
+        max_tokens: 2000,
+        system: system + "\n\nQUAN TRỌNG: JSON phải ngắn gọn. Mỗi string value tối đa 40 ký tự. Mảng risks và catalysts tối đa 2 phần tử. Không dùng ký tự đặc biệt trong JSON.",
         messages,
       }),
     });
 
     const data = await response.json();
     if (!response.ok) return res.status(response.status).json(data);
+
+    // Validate JSON có parse được không trước khi trả về
+    try {
+      const raw = data.content?.map(i => i.text || "").join("").trim();
+      const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
+      if (s !== -1 && e !== -1) JSON.parse(raw.slice(s, e + 1)); // test parse
+    } catch(parseErr) {
+      return res.status(422).json({ error: "JSON parse failed: " + parseErr.message });
+    }
+
     res.status(200).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
